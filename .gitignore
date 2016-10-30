@@ -1,6 +1,17 @@
-#pdfs
-.pdf
+# pdfs
+*.pdf
 
 #zip files
-.zip
+*.zip
+
+# txt files
+*.txt
+
+# Images
+*.img
+*.jpg
+*.jpeg
+
+# Videos
+*.mp4
 
