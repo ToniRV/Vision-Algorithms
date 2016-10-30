@@ -1,26 +1,33 @@
 function AR_wireframe_cube ()
-    f = imread ('data/images_undistorted/img_0001.jpg');
-    f_gray = rgb2gray(f);
-    figure('Name', 'Grayscale image'), imshow(f_gray, []);
-    hold on
-    
-    % Create matrix with points of checkerboard in world frame.
-    [x_w, y_w] = meshgrid(0:0.04:0.32, 0:0.04:0.20);
-    total_points = size(x_w, 1)*size(x_w, 2);
-    corners = [reshape(x_w, 1, total_points); reshape(y_w, 1, total_points); zeros(1, total_points)];
-    
-    % Create geometry of a cube
-    x_0 = 0.12;
-    y_0 = 0.20;
-    z_0 = -0.08;
-    size_edge = 0.08;
-    edges = createCube (x_0, y_0, z_0, size_edge);
     
     % Import camera poses
     poses = import_poses('data/poses.txt');
     
-    % Import calibration matrix
-    K = import_calibration('data/K.txt');
+    % Load camera intrinsics
+    K = load('data/K.txt'); % calibration matrix      [3x3]
+    D = load('data/D.txt'); % distortion coefficients [2x1]
+
+    % Load one image with a given index
+    img_index = 1;
+    f_gray = rgb2gray(imread(['data/images/',sprintf('img_%04d.jpg',img_index)]));
+    
+    figure('Name', 'Grayscale image'), imshow(f_gray, []);
+    hold on;
+    
+    % Create matrix with points of checkerboard in world frame.
+    [x_w, y_w] = meshgrid(0:0.04:0.32, 0:0.04:0.20);
+    total_points = size(x_w, 1)*size(x_w, 2);
+    corners = [reshape(x_w, 1, total_points);
+               reshape(y_w, 1, total_points);
+               zeros(1, total_points)
+              ];
+    
+    % Create geometry of a cube
+    x_0 = 0.12;
+    y_0 = 0.12;
+    z_0 = -0.08;
+    size_edge = 0.08;
+    edges = createCube (x_0, y_0, z_0, size_edge);
     
     for n = 1%:size(poses, 1)
         [R, T] = poseVector2TransformationMatrix (poses(n,:));
@@ -51,11 +58,9 @@ end
 % Projects an edge into the graph or image currently hold.
 function projectEdge(edge_coords)
     width = 3;
-    for i = 1:2:size(edge_coords,2)-1
-        line([edge_coords(1, i), edge_coords(1, i+1)],...
-             [edge_coords(2, i), edge_coords(2, i+1)],...
-             'color', 'red', 'linewidth', width);
-    end
+    line(edge_coords(1, :),...
+         edge_coords(2, :),...
+         'color', 'red', 'linewidth', width);
 end
 
 % Outputs a set of edges defining a cube, the edges are given as
