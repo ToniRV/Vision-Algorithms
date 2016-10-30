@@ -1,8 +1,7 @@
 function AR_wireframe_cube ()
-    
     % Import camera poses
-    poses = import_poses('data/poses.txt');
-    
+    poses = load('data/poses.txt');
+
     % Load camera intrinsics
     K = load('data/K.txt'); % calibration matrix      [3x3]
     D = load('data/D.txt'); % distortion coefficients [2x1]
@@ -15,7 +14,11 @@ function AR_wireframe_cube ()
     hold on;
     
     % Create matrix with points of checkerboard in world frame.
-    [x_w, y_w] = meshgrid(0:0.04:0.32, 0:0.04:0.20);
+    square_size = 0.04;
+    num_of_x_squares = 8; 
+    num_of_y_squares = 5;
+    [x_w, y_w] = meshgrid(0:square_size:num_of_x_squares*square_size,...
+                          0:square_size:num_of_y_squares*square_size);
     total_points = size(x_w, 1)*size(x_w, 2);
     corners = [reshape(x_w, 1, total_points);
                reshape(y_w, 1, total_points);
@@ -31,23 +34,54 @@ function AR_wireframe_cube ()
     
     for n = 1%:size(poses, 1)
         [R, T] = poseVector2TransformationMatrix (poses(n,:));
-        corners_pixels = world2pixels(K, R, T, corners);
+        
+        % Project Corners
+        corners_image_plane = camera2ImagePlane(world2camera(R, T, corners));
+        corners_distorted = distort(D, corners_image_plane);
+        corners_pixels = imagePlane2Pixels(K, corners_distorted);
         projectPoints(corners_pixels);
+        
+        % Project Cube
         for k = 1:size(edges,3)
-            edge_cube_pixels = world2pixels(K, R, T, edges(:,:,k));
+            edge_cube_image_plane = camera2ImagePlane(world2camera(R, T, edges(:,:,k)));
+            edge_cube_distorted = distort(D, edge_cube_image_plane);
+            edge_cube_pixels = imagePlane2Pixels(K, edge_cube_distorted);
             projectEdge(edge_cube_pixels);
         end
     end
 end
 
-% Calculates the pixel coordinates of the world points, given extrinsic and
-% intrinsic parameters of the camera.
-function pixel_coords = world2pixels (K, R, T, world_points)
-    M = K*[R, T];
-    scaled_pixel_coords = M*[world_points; ones(1, size(world_points,2))];
-    u = scaled_pixel_coords(1,:)./scaled_pixel_coords(3,:);
-    v = scaled_pixel_coords(2,:)./scaled_pixel_coords(3,:);
-    pixel_coords = [u; v];
+% Transforms the coordinates of the points in the world frame to the camera frame,
+% given extrinsic parameters of the camera.
+function points_camera = world2camera (R, T, world_points)
+    points_camera = [R, T]*[world_points; ones(1, size(world_points,2))];
+end
+
+% Transforms the coordinates of the points in the camera frame to the image plane,
+% these are normalized.
+function points_image_plane = camera2ImagePlane (points_camera)
+    x = points_camera(1,:)./points_camera(3,:);
+    y = points_camera(2,:)./points_camera(3,:);
+    points_image_plane = [x; y];
+end
+
+% Apply lens distrtion to get the distorted normalized coordinates.
+function points_distorted = distort(D, x)
+    k1 = D(1);
+    k2 = D(2);
+    
+    r2 = x(1,:).^2 + x(2,:).^2;
+    r4 = r2.^2;
+    
+    dist = 1+k1*r2+k2*r4;
+    
+    points_distorted = [dist.*x(1,:); dist.*x(2,:)];
+end
+
+% Discretized pixel coordinates from points in image plane coordinates.
+function pixels = imagePlane2Pixels (K, x)
+    pixels = K*[x; ones(1, size(x,2))];
+    pixels = pixels (1:2, :);
 end
 
 % Projects points into the graph or image currently hold.
