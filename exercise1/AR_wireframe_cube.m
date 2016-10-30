@@ -53,7 +53,7 @@ function projectPoints(pixel_coords)
 end
 
 function projectLines(pixel_coords)
-    line(pixel_coords(:,1)',pixel_coords(:,2)');
+    line(pixel_coords(:,1)',pixel_coords(:,2)', 'color', 'red', 'linewidth', 3);
 end
 
 function [faces, columns] = createCube(x_0, y_0, z_0, size)
