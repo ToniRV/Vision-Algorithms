@@ -6,17 +6,12 @@ function AR_wireframe_cube ()
     
     % Create matrix with points of checkerboard in world frame.
     [x_w, y_w] = meshgrid(0:0.04:0.32, 0:0.04:0.20);
-    corners = zeros(3, size(x_w, 1)*size(x_w, 2));
-    for i = 1:size(x_w, 1)
-        corners = [corners, [x_w(i, :);
-                             y_w(i, :);
-                             zeros(1, size(x_w, 2))]
-                             ];
-    end
+    total_points = size(x_w, 1)*size(x_w, 2);
+    corners = [reshape(x_w, 1, total_points); reshape(y_w, 1, total_points); zeros(1, total_points)];
     
     % Create geometry of a cube
-    x_0 = 0;
-    y_0 = 0;
+    x_0 = 0.12;
+    y_0 = 0.20;
     z_0 = -0.08;
     size_edge = 0.08;
     edges = createCube (x_0, y_0, z_0, size_edge);
@@ -67,8 +62,6 @@ end
 % 3-by-2-by-12 matrix containing the x, y and z coordinates of each
 % pair of vertex defining an edge, for the 12 edges that there are in a cube.
 function edges = createCube(x_0, y_0, z_0, length)
-    edges = [];
-    
     % Features
     faces = cat(3,...
                 horizontal_square(x_0, y_0, z_0, length),...
@@ -80,12 +73,13 @@ function edges = createCube(x_0, y_0, z_0, length)
                 vertical_column(x_0+length, y_0+length, z_0, length));
     
     % Make edges out of points in features.
-    for i = 1:size(faces, 3)
-        edges = cat(3, edges, getEdgesFromFeature(faces(:,:,i)));
-    end
-    for i = 1:size(columns, 3)
-        edges = cat(3, edges, getEdgesFromFeature(columns(:,:,i)));
-    end
+    edges = cat(3, getEdgesFromFeature(faces(:,:,1)),...
+                   getEdgesFromFeature(faces(:,:,2)),...
+                   getEdgesFromFeature(columns(:,:,1)),...
+                   getEdgesFromFeature(columns(:,:,2)),...
+                   getEdgesFromFeature(columns(:,:,3)),...
+                   getEdgesFromFeature(columns(:,:,4))...
+                );
 end
 
 % Creates a vertical column in 3D starting from given x_0, y_0, z_0 position with a
