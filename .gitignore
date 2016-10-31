@@ -15,3 +15,5 @@
 # Videos
 *.mp4
 
+# Directories
+exercise1_solns/*
