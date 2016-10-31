@@ -70,17 +70,18 @@ function points_distorted = distort(D, x)
     k1 = D(1);
     k2 = D(2);
     
-    r2 = x(1,:).^2 + x(2,:).^2;
+    r2 = x(1, :).^2 + x(2, :).^2;
     r4 = r2.^2;
     
     dist = 1+k1*r2+k2*r4;
     
-    points_distorted = [dist.*x(1,:); dist.*x(2,:)];
+    points_distorted = [dist.*x(1, :); dist.*x(2, :)];
 end
 
-% Discretized pixel coordinates from points in image plane coordinates.
+% Discretized pixel coordinates from image plane coordinates,
+% given the intrinsic parameters of the camera.
 function pixels = imagePlane2Pixels (K, x)
-    pixels = K*[x; ones(1, size(x,2))];
+    pixels = K*[x; ones(1, size(x, 2))];
     pixels = pixels (1:2, :);
 end
 
@@ -98,8 +99,9 @@ function projectEdge(edge_coords)
 end
 
 % Outputs a set of edges defining a cube, the edges are given as
-% 3-by-2-by-12 matrix containing the x, y and z coordinates of each
-% pair of vertex defining an edge, for the 12 edges that there are in a cube.
+% (3)-by-(2)-by-(12) matrix containing the x, y and z coordinates (3)
+% of each pair of vertex (2) defining an edge, for the (12) edges 
+% that there are in a cube.
 function edges = createCube(x_0, y_0, z_0, length)
     % Features
     faces = cat(3,...
@@ -151,26 +153,26 @@ function edges = getEdgesFromFeature(feature)
     number_of_points = 2*number_of_edges;
     
     edges = zeros(3, 2, number_of_edges);
-    way_points = zeros(3, number_of_points);
+    vertices = zeros(3, number_of_points);
     
     % Feature is closed
-    way_points(:, 1) = feature(:, 1);
-    way_points(:, number_of_points) = feature(:, 1);
+    vertices(:, 1) = feature(:, 1);
+    vertices(:, number_of_points) = feature(:, 1);
     
     i = 2;
     h = 2;
     while(h <= number_of_edges)
-        way_points(:, i) = feature(:, h);
-        way_points(:, i+1) = feature(:, h);
+        vertices(:, i) = feature(:, h);
+        vertices(:, i+1) = feature(:, h);
         i = i+2;
         h = h+1;
     end
     
-    % Store edges as pairs of waypoints
+    % Store edges as pairs of vertices
     h = 0;
-    for i = 1:2:size(way_points, 2)-1
+    for i = 1:2:size(vertices, 2)-1
         h = h + 1;
-        edges(:,:,h)=[way_points(:, i), way_points(:, i+1)];
+        edges(:,:,h)=[vertices(:, i), vertices(:, i+1)];
     end
 end
 
