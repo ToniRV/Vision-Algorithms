@@ -5,18 +5,12 @@ function AR_wireframe_cube ()
     % Load camera intrinsics
     K = load('data/K.txt'); % calibration matrix      [3x3]
     D = load('data/D.txt'); % distortion coefficients [2x1]
-
-    % Load one image with a given index
-    img_index = 1;
-    f_gray = rgb2gray(imread(['data/images/',sprintf('img_%04d.jpg',img_index)]));
-    
-    figure('Name', 'Grayscale image'), imshow(f_gray, []);
-    hold on;
     
     % Create matrix with points of checkerboard in world frame.
     square_size = 0.04;
     num_of_x_squares = 8; 
     num_of_y_squares = 5;
+    
     [x_w, y_w] = meshgrid(0:square_size:num_of_x_squares*square_size,...
                           0:square_size:num_of_y_squares*square_size);
     total_points = size(x_w, 1)*size(x_w, 2);
@@ -30,27 +24,68 @@ function AR_wireframe_cube ()
     y_0 = 0.12;
     z_0 = -0.08;
     size_edge = 0.08;
+    
     edges = createCube (x_0, y_0, z_0, size_edge);
     
-    for n = 1%:size(poses, 1)
-        [R, T] = poseVector2TransformationMatrix (poses(n,:));
+    %Create movie
+    workingDir = './data/';
+    imageNames = dir(fullfile(workingDir,'images','*.jpg'));
+    imageNames = {imageNames.name}';
+    
+    outputVideo = VideoWriter(fullfile(workingDir,'shuttle_out.avi'));
+    outputVideo.FrameRate = 30;
+    open(outputVideo)
+    
+    for ii = 1:length(imageNames)
+        img = imread(fullfile(workingDir,'images',imageNames{ii}));
+        img_gray = rgb2gray(img);
         
+        [R, T] = poseVector2TransformationMatrix (poses(ii,:));
+
         % Project Corners
-        corners_image_plane = camera2ImagePlane(world2camera(R, T, corners));
-        corners_distorted = distort(D, corners_image_plane);
-        corners_pixels = imagePlane2Pixels(K, corners_distorted);
-        projectPoints(corners_pixels);
-        
+%         corners_image_plane = camera2ImagePlane(world2camera(R, T, corners));
+%         corners_distorted = distort(D, corners_image_plane);
+%         corners_pixels = imagePlane2Pixels(K, corners_distorted);
+%         projectPoints(corners_pixels);
+
         % Project Cube
         for k = 1:size(edges,3)
             edge_cube_image_plane = camera2ImagePlane(world2camera(R, T, edges(:,:,k)));
             edge_cube_distorted = distort(D, edge_cube_image_plane);
             edge_cube_pixels = imagePlane2Pixels(K, edge_cube_distorted);
-            projectEdge(edge_cube_pixels);
-        end
+            img_gray = projectEdge(edge_cube_pixels, 0, img_gray);
+        end    
+        
+        writeVideo(outputVideo,img_gray);
     end
+    
+    close(outputVideo);
+   
+    playMovie (workingDir)
 end
 
+%Play movie
+function playMovie (workingDir)
+    shuttleAvi = VideoReader(fullfile(workingDir,'shuttle_out.avi'));
+    
+    ii = 1;
+    while hasFrame(shuttleAvi)
+       mov(ii) = im2frame(readFrame(shuttleAvi));
+       ii = ii+1;
+    end
+    
+    f = figure;
+    f.Position = [150 150 shuttleAvi.Width shuttleAvi.Height];
+
+    ax = gca;
+    ax.Units = 'pixels';
+    ax.Position = [0 0 shuttleAvi.Width shuttleAvi.Height];
+
+    image(mov(1).cdata,'Parent',ax)
+    axis off
+    
+    movie(mov,1,shuttleAvi.FrameRate)
+end
 % Transforms the coordinates of the points in the world frame to the camera frame,
 % given extrinsic parameters of the camera.
 function points_camera = world2camera (R, T, world_points)
@@ -90,12 +125,28 @@ function projectPoints(pixel_coords)
     scatter (pixel_coords(1,:), pixel_coords(2,:), 'filled');
 end
 
-% Projects an edge into the graph or image currently hold.
-function projectEdge(edge_coords)
-    width = 3;
-    line(edge_coords(1, :),...
-         edge_coords(2, :),...
-         'color', 'red', 'linewidth', width);
+% Projects an edge into the graph currently hold (arg type must be 1) or
+% image given in img parameter (arg type must be 0).
+% For both, edge must be [x_1, x_2 ,...; y_1, y_2,...]
+function img = projectEdge(edge_coords, type, img)
+    if (type)
+        width = 3;
+        line(edge_coords(1, :),...
+             edge_coords(2, :),...
+             'color', 'red', 'linewidth', width);
+    else
+        if nargin<3
+            error('No image given')
+        else
+            % Format to [x_1, y_1, x_2, y_2; ...]
+            num_edges = size(edge_coords, 2)/2;
+            edge_coords = reshape (edge_coords, num_edges, 4);
+            
+            % Draw in imagef
+            img = insertShape(img,'Line', edge_coords,...
+        'Color', 'red', 'Opacity',0.7);
+        end
+    end
 end
 
 % Outputs a set of edges defining a cube, the edges are given as
@@ -135,15 +186,16 @@ end
 function square = horizontal_square(x_0, y_0, z_0, size)
     square = ones(3, 4);
     
-    % Scale
-    square(1, :) = size*[0, 1, 1, 0]; 
-    square(2, :) = size*[0, 0, 1, 1];
+    % Scale edges by size.
+    square(1, :) = size*[0, 1, 1, 0]; %x
+    square(2, :) = size*[0, 0, 1, 1]; %y
     
-    % Reposition
+    % Reposition to given origin.
     square(1, :) = square(1, :)+x_0;
     square(2, :) = square(2, :)+y_0;
-    
-    square(3, :) = [z_0 , z_0, z_0, z_0];
+  
+    % Set height
+    square(3, :) = [z_0 , z_0, z_0, z_0]; %z
 end
 
 % Extract edges from set of points of closed features, such as a face of a
