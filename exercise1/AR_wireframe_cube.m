@@ -5,12 +5,20 @@ function AR_wireframe_cube ()
     % Load camera intrinsics
     K = load('data/K.txt'); % calibration matrix      [3x3]
     D = load('data/D.txt'); % distortion coefficients [2x1]
-    
+
+    % Determine undistortion to be used.
+    undistortion_type = 0; % 0=none (use distorted images),
+                     % 1=neirest-neighbour interpolation undistortion
+                     % 2=bilinear interpolation undistortion
+
+    % Make movie or not?
+    make_movie = 0; %0=no, 1=yes.
+
     % Create matrix with points of checkerboard in world frame.
     square_size = 0.04;
-    num_of_x_squares = 8; 
+    num_of_x_squares = 8;
     num_of_y_squares = 5;
-    
+
     [x_w, y_w] = meshgrid(0:square_size:num_of_x_squares*square_size,...
                           0:square_size:num_of_y_squares*square_size);
     total_points = size(x_w, 1)*size(x_w, 2);
@@ -18,50 +26,103 @@ function AR_wireframe_cube ()
                reshape(y_w, 1, total_points);
                zeros(1, total_points)
               ];
-    
+
     % Create geometry of a cube
     x_0 = 0.12;
     y_0 = 0.12;
     z_0 = -0.08;
     size_edge = 0.08;
-    
+
     edges = createCube (x_0, y_0, z_0, size_edge);
-    
-    %Create movie
+
+    %Load images
     workingDir = './data/';
     imageNames = dir(fullfile(workingDir,'images','*.jpg'));
     imageNames = {imageNames.name}';
-    
-    outputVideo = VideoWriter(fullfile(workingDir,'shuttle_out.avi'));
-    outputVideo.FrameRate = 30;
-    open(outputVideo)
-    
-    for ii = 1:length(imageNames)
-        img = imread(fullfile(workingDir,'images',imageNames{ii}));
-        img_gray = rgb2gray(img);
-        
-        [R, T] = poseVector2TransformationMatrix (poses(ii,:));
 
-        % Project Corners
-%         corners_image_plane = camera2ImagePlane(world2camera(R, T, corners));
-%         corners_distorted = distort(D, corners_image_plane);
-%         corners_pixels = imagePlane2Pixels(K, corners_distorted);
-%         projectPoints(corners_pixels);
+    % Read first image
+    img_gray = rgb2gray(imread(fullfile(workingDir,'images',imageNames{1})));
 
-        % Project Cube
-        for k = 1:size(edges,3)
-            edge_cube_image_plane = camera2ImagePlane(world2camera(R, T, edges(:,:,k)));
-            edge_cube_distorted = distort(D, edge_cube_image_plane);
-            edge_cube_pixels = imagePlane2Pixels(K, edge_cube_distorted);
-            img_gray = projectEdge(edge_cube_pixels, 0, img_gray);
-        end    
-        
-        writeVideo(outputVideo,img_gray);
+    % Vectorized undistortion without bilinear interpolation
+    tic;
+    img_undistorted = undistortImage(img_gray, K, D, 0);
+    disp(['Undistortion without bilinear interpolation completed in ' num2str(toc)]);
+
+    figure();
+    subplot(1, 2, 1);
+    imshow(img_undistorted);
+    title('With bilinear interpolation');
+
+    if (make_movie)
+        %Make movie
+        outputVideo = VideoWriter(fullfile(workingDir,'shuttle_out.avi'));
+        outputVideo.FrameRate = 30;
+        open(outputVideo)
+
+        for ii = 1:length(imageNames)
+            img = imread(fullfile(workingDir,'images',imageNames{ii}));
+            img_gray = rgb2gray(img);
+
+            [R, T] = poseVector2TransformationMatrix (poses(ii,:));
+
+            % Project Corners
+    %         corners_image_plane = camera2ImagePlane(world2camera(R, T, corners));
+    %         corners_distorted = distort(D, corners_image_plane);
+    %         corners_pixels = imagePlane2Pixels(K, corners_distorted);
+    %         projectPoints(corners_pixels);
+
+            figure();
+            subplot(1, 2, 1);
+            imshow(img_undistorted);
+            title('With bilinear interpolation');
+            subplot(1, 2, 2);
+            imshow(img_undistorted_vectorized);
+            title('Without bilinear interpolation');
+
+            % Project Cube
+            for k = 1:size(edges,3)
+                edge_cube_image_plane = camera2ImagePlane(world2camera(R, T, edges(:,:,k)));
+                edge_cube_distorted = distort(D, edge_cube_image_plane); %Distorted edges
+                edge_cube_pixels = imagePlane2Pixels(K, edge_cube_distorted);
+                img_gray = projectEdge(edge_cube_pixels, 0, img_gray); %Distorted images
+            end
+            writeVideo(outputVideo,img_gray);
+        end
+        close(outputVideo);
+        if (make_movie)
+            playMovie (workingDir)
+        end
     end
-    
-    close(outputVideo);
-   
-    playMovie (workingDir)
+end
+
+function img_undistorted = undistortImage(distorted_img, K, D, bilinear_interpolation)
+    if nargin < 4
+        bilinear_interpolation = 0;
+    end
+
+    [height, width] = size(distorted_img);
+    size_img = height*width;
+    undistorted_img = uint8(zeros(height, width));
+    [X, Y] = meshgrid(1:width, 1:height);
+    pixels_coords = [reshape(X, 1, size_img); reshape(Y, 1, size_img); ones(1,size_img)];
+
+    normalized_coords = K^-1*pixels_coords;
+    normalized_coords = normalized_coords(1:2, :);
+
+    normalized_coords_distorted = distort(D, normalized_coords);
+
+    pixel_coords_distorted = K*[normalized_coords_distorted; ones(1, size_img)];
+    pixel_coords_distorted = pixel_coords_distorted(1:2, :);
+
+    if (bilinear_interpolation)
+
+    else
+        pixel_coords_distorted_rounded = round(pixel_coords_distorted); % Get integer coordinates for the pixels
+
+        intensity_vals = distorted_img(pixel_coords_distorted_rounded(2, :)+...
+                                       size(distorted_img, 1)*pixel_coords_distorted_rounded(1, :));
+        img_undistorted = uint8(reshape(intensity_vals, height, width));
+    end
 end
 
 %Play movie
@@ -86,6 +147,7 @@ function playMovie (workingDir)
     
     movie(mov,1,shuttleAvi.FrameRate)
 end
+
 % Transforms the coordinates of the points in the world frame to the camera frame,
 % given extrinsic parameters of the camera.
 function points_camera = world2camera (R, T, world_points)
@@ -100,7 +162,8 @@ function points_image_plane = camera2ImagePlane (points_camera)
     points_image_plane = [x; y];
 end
 
-% Apply lens distrtion to get the distorted normalized coordinates.
+% Apply lens distortion to get the distorted normalized coordinates.
+% This function only works with NORMALIZED coordinates as input.
 function points_distorted = distort(D, x)
     k1 = D(1);
     k2 = D(2);
