@@ -48,9 +48,17 @@ function AR_wireframe_cube ()
     img_undistorted = undistortImage(img_gray, K, D, 0);
     disp(['Undistortion without bilinear interpolation completed in ' num2str(toc)]);
 
+    % Vectorized undistortion with bilinear interpolation
+    tic;
+    img_undistorted_bilinear = undistortImage(img_gray, K, D, 1);
+    disp(['Undistortion with bilinear interpolation completed in ' num2str(toc)]);
+
     figure();
     subplot(1, 2, 1);
     imshow(img_undistorted);
+    title('Without bilinear interpolation');
+    subplot(1, 2, 2);
+    imshow(img_undistorted_bilinear);
     title('With bilinear interpolation');
 
     if (make_movie)
@@ -113,28 +121,44 @@ function img_undistorted = undistortImage(distorted_img, K, D, bilinear_interpol
 
     pixel_coords_distorted = K*[normalized_coords_distorted; ones(1, size_img)];
     pixel_coords_distorted = pixel_coords_distorted(1:2, :);
-
+    
+    intensity_vals= zeros(1, size_img);
     if (bilinear_interpolation)
-
+        x1 = fix(pixel_coords_distorted(1,:));
+        y1 = fix(pixel_coords_distorted(2,:));
+        x = pixel_coords_distorted (1,:);
+        y = pixel_coords_distorted (2,:);
+        ab = double(shiftdim([distorted_img(y1+height*x1); distorted_img((y1)+height*(x1+1))], -1));
+        cd = double(shiftdim([distorted_img((y1+1)+height*(x1)); distorted_img((y1+1)+height*(x1+1))], -1));
+        abcd = [ab; cd];
+        v_y = shiftdim([y1+1-y; y-y1], -1);
+        v_x = permute(shiftdim([x1+1-x; x-x1], -1), [2, 1, 3]);
+        
+        o = v_y.*permute(abcd(:,1,:), [2 1 3]);
+        omg = o(1,1,:)+o(1,2,:);
+        w = v_y.*permute(abcd(:,2,:), [2 1 3]);
+        wtf = w(1,1,:)+w(1,2,:);
+        
+        lol = omg.*v_x(1,:,:)+wtf.*v_x(2,:,:);
+        intensity_vals = uint8(lol);
     else
         pixel_coords_distorted_rounded = round(pixel_coords_distorted); % Get integer coordinates for the pixels
-
         intensity_vals = distorted_img(pixel_coords_distorted_rounded(2, :)+...
-                                       size(distorted_img, 1)*pixel_coords_distorted_rounded(1, :));
-        img_undistorted = uint8(reshape(intensity_vals, height, width));
+                                       height*pixel_coords_distorted_rounded(1, :));
     end
+    img_undistorted = reshape(intensity_vals, height, width);
 end
 
 %Play movie
 function playMovie (workingDir)
     shuttleAvi = VideoReader(fullfile(workingDir,'shuttle_out.avi'));
-    
+
     ii = 1;
     while hasFrame(shuttleAvi)
        mov(ii) = im2frame(readFrame(shuttleAvi));
        ii = ii+1;
     end
-    
+
     f = figure;
     f.Position = [150 150 shuttleAvi.Width shuttleAvi.Height];
 
@@ -144,7 +168,7 @@ function playMovie (workingDir)
 
     image(mov(1).cdata,'Parent',ax)
     axis off
-    
+
     movie(mov,1,shuttleAvi.FrameRate)
 end
 
@@ -167,12 +191,12 @@ end
 function points_distorted = distort(D, x)
     k1 = D(1);
     k2 = D(2);
-    
+
     r2 = x(1, :).^2 + x(2, :).^2;
     r4 = r2.^2;
-    
+
     dist = 1+k1*r2+k2*r4;
-    
+
     points_distorted = [dist.*x(1, :); dist.*x(2, :)];
 end
 
@@ -204,7 +228,7 @@ function img = projectEdge(edge_coords, type, img)
             % Format to [x_1, y_1, x_2, y_2; ...]
             num_edges = size(edge_coords, 2)/2;
             edge_coords = reshape (edge_coords, num_edges, 4);
-            
+
             % Draw in imagef
             img = insertShape(img,'Line', edge_coords,...
         'Color', 'red', 'Opacity',0.7);
@@ -214,7 +238,7 @@ end
 
 % Outputs a set of edges defining a cube, the edges are given as
 % (3)-by-(2)-by-(12) matrix containing the x, y and z coordinates (3)
-% of each pair of vertex (2) defining an edge, for the (12) edges 
+% of each pair of vertex (2) defining an edge, for the (12) edges
 % that there are in a cube.
 function edges = createCube(x_0, y_0, z_0, length)
     % Features
@@ -226,7 +250,7 @@ function edges = createCube(x_0, y_0, z_0, length)
                 vertical_column(x_0+length, y_0, z_0, length),...
                 vertical_column(x_0, y_0+length, z_0, length),...
                 vertical_column(x_0+length, y_0+length, z_0, length));
-    
+
     % Make edges out of points in features.
     edges = cat(3, getEdgesFromFeature(faces(:,:,1)),...
                    getEdgesFromFeature(faces(:,:,2)),...
@@ -248,15 +272,15 @@ end
 % Creates horizontal square with given size and origin x_0, y_0, z_0.
 function square = horizontal_square(x_0, y_0, z_0, size)
     square = ones(3, 4);
-    
+
     % Scale edges by size.
     square(1, :) = size*[0, 1, 1, 0]; %x
     square(2, :) = size*[0, 0, 1, 1]; %y
-    
+
     % Reposition to given origin.
     square(1, :) = square(1, :)+x_0;
     square(2, :) = square(2, :)+y_0;
-  
+
     % Set height
     square(3, :) = [z_0 , z_0, z_0, z_0]; %z
 end
@@ -266,14 +290,14 @@ end
 function edges = getEdgesFromFeature(feature)
     number_of_edges = size(feature, 2);
     number_of_points = 2*number_of_edges;
-    
+
     edges = zeros(3, 2, number_of_edges);
     vertices = zeros(3, number_of_points);
-    
+
     % Feature is closed
     vertices(:, 1) = feature(:, 1);
     vertices(:, number_of_points) = feature(:, 1);
-    
+
     i = 2;
     h = 2;
     while(h <= number_of_edges)
@@ -282,7 +306,7 @@ function edges = getEdgesFromFeature(feature)
         i = i+2;
         h = h+1;
     end
-    
+
     % Store edges as pairs of vertices
     h = 0;
     for i = 1:2:size(vertices, 2)-1
@@ -324,14 +348,14 @@ function R = axisAngle2RotationalMatrix(w)
             w = w';
         end
     end
-    
+
     theta = norm(w);
     k = w/theta;
-    
+
     % Cross product matrix for k
     k_x = [0        -k(3)   k(2);
            k(3)     0       -k(1);
            -k(2)    k(1)    0];
-       
+
     R = eye(3) + sin(theta)*k_x + (1-cos(theta))*k_x*k_x;
 end
