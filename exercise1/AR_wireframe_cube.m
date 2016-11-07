@@ -159,7 +159,7 @@ function img_undistorted = undistortImage(distorted_img, K, D, bilinear_interpol
     else
         pixel_coords_distorted_rounded = round(pixel_coords_distorted); % Get integer coordinates for the pixels
         intensity_vals = distorted_img(pixel_coords_distorted_rounded(2, :)+...
-                                       height*pixel_coords_distorted_rounded(1, :));
+                                       height*(pixel_coords_distorted_rounded(1, :)-1));
     end
     img_undistorted = reshape(intensity_vals, height, width);
 end
