@@ -47,6 +47,10 @@ function AR_wireframe_cube ()
     tic;
     img_undistorted = undistortImage(img_gray, K, D, 0);
     disp(['Undistortion without bilinear interpolation completed in ' num2str(toc)]);
+    
+    tic;
+    img_undistorted_theirs = undistortImageVectorized(img_gray, K, D);
+    disp(['THEIRS Undistortion without bilinear interpolation completed in ' num2str(toc)]);
 
     % Vectorized undistortion with bilinear interpolation
     tic;
@@ -58,16 +62,20 @@ function AR_wireframe_cube ()
     disp(['Undistortion with THEIR bilinear interpolation completed in ' num2str(toc)]);
     
     figure();
-    subplot(1, 3, 1);
+    subplot(2, 2, 1);
     imshow(img_undistorted);
     title('Without bilinear interpolation');
-    subplot(1, 3, 2);
+    subplot(2, 2, 2);
+    imshow(abs(img_undistorted-img_undistorted_theirs));
+    title('DIFF for Linear vectorized');
+    
+    subplot(2, 2, 3);
     imshow(img_undistorted_bilinear);
     title('With bilinear interpolation');
-    subplot(1, 3, 3);
+    subplot(2, 2, 4);
     g = abs(img_undistorted_bilinear-img_undistorted_bi_theirs);
     imshow(abs(img_undistorted_bilinear-img_undistorted_bi_theirs));
-    title('DIFF btw mine and theirs bilinear interpolation');
+    title('DIFF btw mine and theirs BILINEAR interpolation');
 
     if (make_movie)
         %Make movie
