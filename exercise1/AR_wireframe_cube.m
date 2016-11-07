@@ -53,13 +53,21 @@ function AR_wireframe_cube ()
     img_undistorted_bilinear = undistortImage(img_gray, K, D, 1);
     disp(['Undistortion with bilinear interpolation completed in ' num2str(toc)]);
 
+    tic
+    img_undistorted_bi_theirs = undistortImageTheirs(img_gray, K, D, 1);
+    disp(['Undistortion with THEIR bilinear interpolation completed in ' num2str(toc)]);
+    
     figure();
-    subplot(1, 2, 1);
+    subplot(1, 3, 1);
     imshow(img_undistorted);
     title('Without bilinear interpolation');
-    subplot(1, 2, 2);
+    subplot(1, 3, 2);
     imshow(img_undistorted_bilinear);
     title('With bilinear interpolation');
+    subplot(1, 3, 3);
+    g = abs(img_undistorted_bilinear-img_undistorted_bi_theirs);
+    imshow(abs(img_undistorted_bilinear-img_undistorted_bi_theirs));
+    title('DIFF btw mine and theirs bilinear interpolation');
 
     if (make_movie)
         %Make movie
@@ -110,36 +118,35 @@ function img_undistorted = undistortImage(distorted_img, K, D, bilinear_interpol
 
     [height, width] = size(distorted_img);
     size_img = height*width;
-    undistorted_img = uint8(zeros(height, width));
     [X, Y] = meshgrid(1:width, 1:height);
-    pixels_coords = [reshape(X, 1, size_img); reshape(Y, 1, size_img); ones(1,size_img)];
+    pixels_coords = [reshape(X, 1, size_img); reshape(Y, 1, size_img); ones(1, size_img)];
 
     normalized_coords = K^-1*pixels_coords;
     normalized_coords = normalized_coords(1:2, :);
 
-    normalized_coords_distorted = distort(D, normalized_coords);
+    normalized_coords_distorted = distortPoints(normalized_coords, D);
 
     pixel_coords_distorted = K*[normalized_coords_distorted; ones(1, size_img)];
     pixel_coords_distorted = pixel_coords_distorted(1:2, :);
     
-    intensity_vals= zeros(1, size_img);
     if (bilinear_interpolation)
         x1 = fix(pixel_coords_distorted(1,:));
         y1 = fix(pixel_coords_distorted(2,:));
         x = pixel_coords_distorted (1,:);
         y = pixel_coords_distorted (2,:);
-        ab = double(shiftdim([distorted_img(y1+height*x1); distorted_img((y1)+height*(x1+1))], -1));
-        cd = double(shiftdim([distorted_img((y1+1)+height*(x1)); distorted_img((y1+1)+height*(x1+1))], -1));
-        abcd = [ab; cd];
-        v_y = shiftdim([y1+1-y; y-y1], -1);
-        v_x = permute(shiftdim([x1+1-x; x-x1], -1), [2, 1, 3]);
         
-        o = v_y.*permute(abcd(:,1,:), [2 1 3]);
-        omg = o(1,1,:)+o(1,2,:);
-        w = v_y.*permute(abcd(:,2,:), [2 1 3]);
-        wtf = w(1,1,:)+w(1,2,:);
+        ac = double([distorted_img(y1+height*(x1-1)); distorted_img((y1+1)+height*(x1-1))]);
+        bd = double([distorted_img((y1)+height*(x1)); distorted_img((y1+1)+height*(x1))]);
         
-        lol = omg.*v_x(1,:,:)+wtf.*v_x(2,:,:);
+        v_y = [y1+1-y; y-y1];
+        v_x = [x1+1-x; x-x1];
+        
+        o = v_y.*ac;
+        omg = o(1,:)+o(2,:);
+        w = v_y.*bd;
+        wtf = w(1,:)+w(2,:);
+        
+        lol = omg.*v_x(1,:)+wtf.*v_x(2,:);
         intensity_vals = uint8(lol);
     else
         pixel_coords_distorted_rounded = round(pixel_coords_distorted); % Get integer coordinates for the pixels
