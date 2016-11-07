@@ -124,7 +124,7 @@ function img_undistorted = undistortImage(distorted_img, K, D, bilinear_interpol
     normalized_coords = K^-1*pixels_coords;
     normalized_coords = normalized_coords(1:2, :);
 
-    normalized_coords_distorted = distortPoints(normalized_coords, D);
+    normalized_coords_distorted = distort(D, normalized_coords);
 
     pixel_coords_distorted = K*[normalized_coords_distorted; ones(1, size_img)];
     pixel_coords_distorted = pixel_coords_distorted(1:2, :);
