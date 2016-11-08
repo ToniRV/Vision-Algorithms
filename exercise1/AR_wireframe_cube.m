@@ -7,7 +7,7 @@ function AR_wireframe_cube ()
     D = load('data/D.txt'); % distortion coefficients [2x1]
 
     % Determine undistortion to be used.
-    undistortion_type = 0; % 0=none (use distorted images),
+    undistortion_type = 2; % 0=none (use distorted images),
                      % 1=neirest-neighbour interpolation undistortion
                      % 2=bilinear interpolation undistortion
 
@@ -86,6 +86,13 @@ function AR_wireframe_cube ()
         for ii = 1:length(imageNames)
             img = imread(fullfile(workingDir,'images',imageNames{ii}));
             img_gray = rgb2gray(img);
+            
+            if (undistortion_type==0)
+                % Do not undistort
+            else
+                % Use linear interpolation
+                img_gray = undistortImage(img_gray, K, D, undistortion_type);
+            end
 
             [R, T] = poseVector2TransformationMatrix (poses(ii,:));
 
@@ -94,14 +101,6 @@ function AR_wireframe_cube ()
     %         corners_distorted = distort(D, corners_image_plane);
     %         corners_pixels = imagePlane2Pixels(K, corners_distorted);
     %         projectPoints(corners_pixels);
-
-            figure();
-            subplot(1, 2, 1);
-            imshow(img_undistorted);
-            title('With bilinear interpolation');
-            subplot(1, 2, 2);
-            imshow(img_undistorted_vectorized);
-            title('Without bilinear interpolation');
 
             % Project Cube
             for k = 1:size(edges,3)
@@ -136,24 +135,24 @@ function img_undistorted = undistortImage(distorted_img, K, D, bilinear_interpol
 
     pixel_coords_distorted = K*[normalized_coords_distorted; ones(1, size_img)];
     pixel_coords_distorted = pixel_coords_distorted(1:2, :);
-    
+
     if (bilinear_interpolation)
         x1 = fix(pixel_coords_distorted(1,:));
         y1 = fix(pixel_coords_distorted(2,:));
         x = pixel_coords_distorted (1,:);
         y = pixel_coords_distorted (2,:);
-        
+
         ac = double([distorted_img(y1+height*(x1-1)); distorted_img((y1+1)+height*(x1-1))]);
         bd = double([distorted_img((y1)+height*(x1)); distorted_img((y1+1)+height*(x1))]);
-        
+
         v_y = [y1+1-y; y-y1];
         v_x = [x1+1-x; x-x1];
-        
+
         o = v_y.*ac;
         omg = o(1,:)+o(2,:);
         w = v_y.*bd;
         wtf = w(1,:)+w(2,:);
-        
+
         lol = omg.*v_x(1,:)+wtf.*v_x(2,:);
         intensity_vals = uint8(lol);
     else
@@ -257,11 +256,7 @@ end
 % that there are in a cube.
 function edges = createCube(x_0, y_0, z_0, length)
     % Features
-    faces = cat(3,...
-                horizontal_square(x_0, y_0, z_0, length),...
-                horizontal_square(x_0, y_0, z_0+length, length));
-    columns = cat(3,...
-                vertical_column(x_0, y_0, z_0, length),...
+    faces = cat(3,...  horizontal_square(x_0, y_0, z_0, length),...  horizontal_square(x_0, y_0, z_0+length, length)); columns = cat(3,...  vertical_column(x_0, y_0, z_0, length),...
                 vertical_column(x_0+length, y_0, z_0, length),...
                 vertical_column(x_0, y_0+length, z_0, length),...
                 vertical_column(x_0+length, y_0+length, z_0, length));
