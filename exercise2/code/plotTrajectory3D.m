@@ -42,17 +42,18 @@ for k = 1:decimationFactor:numPoses
         ylabel('Y');
         zlabel('Z');
 
-%         % Uncomment this block to set a nice camera view for visualizing
-%         % the camera motion in Exercise 2 - PnP
-%
-%         set(gca,'CameraPosition',...
-%             [-2.11926427968706 -1.26339742475999 -2.74402484464086],'CameraUpVector',...
-%             [0.249894865616035 -0.919346901850372 0.303897729831707],'CameraViewAngle',...
-%             6.14709233376306,'DataAspectRatio',[1 1 1],'PlotBoxAspectRatio',...
-%             [1.81087823370581 1 1.68269573663027]);
-%         xlim([-0.3 0.2]);
-%         ylim([-0.1 0.28]);
-%         zlim([-0.6 0]);
+        % Uncomment this block to set a nice camera view for visualizing
+        % the camera motion in Exercise 2 - PnP
+
+        set(gca,'CameraPosition',...
+            [-2.11926427968706 -1.26339742475999 -2.74402484464086],'CameraUpVector',...
+            [0.249894865616035 -0.919346901850372 0.303897729831707],'CameraViewAngle',...
+            6.14709233376306,'DataAspectRatio',[1 1 1],'PlotBoxAspectRatio',...
+            [1.81087823370581 1 1.68269573663027]);
+        xlim([-0.3 0.2]);
+        ylim([-0.1 0.28]);
+        zlim([-0.6 0]);
+        %
 
         % Plot the 3D points
         scatter3(pts3d(1,:), pts3d(2,:), pts3d(3,:));
