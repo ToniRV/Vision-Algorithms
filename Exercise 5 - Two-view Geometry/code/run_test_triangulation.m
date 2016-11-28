@@ -26,7 +26,9 @@ M2 =   [500 0 320 -100
 p1 = M1 * P;     % Image (i.e., projected) points
 p2 = M2 * P;
 
+tic;
 P_est = linearTriangulation(p1,p2,M1,M2);
+fprintf('It took %ds to compute linear triangulation \n', toc);
 
 fprintf('P_est-P=\n');
 (P_est-P)
