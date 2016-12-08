@@ -20,6 +20,28 @@
 %
 
 function [R,T] = disambiguateRelativePose(Rots,u3,p1,p2,K1,K2)
-
+    T1 = [eye(3), zeros(3,1)];
+    M1 = K1*T1;
+    % Possible Transformation matrices given by the decomposition of E
+    T2s = cat(3, [Rots(:,:,1), u3], [Rots(:,:,1), -u3], [Rots(:,:,2), u3], [Rots(:,:,2), -u3]);
+    
+    % X represents the 3D points triangulated with each T possible
+    X_A = zeros (4, size(p1,2), 4);
+    X_B = zeros (4, size(p1,2), 4);
+    
+    % Counts the number of 3D points which have positive depth components
+    positive_counts = zeros (1, 4);
+    for i=1:4
+        M2 = K2*T2s(:,:,i);
+        % Compute points in world coordinates
+        X_A(:,:,i) = linearTriangulation(p1, p2, M1, M2);
+        % Compute points in camera B coordinates
+        X_B(1:3,:,i) = T2s(:,:,i)*X_A(:,:,i);
+        % Sum positive points
+        positive_counts(i) = sum([X_A(3,:,i)>0, X_B(3,:,i)>0]);
+    end
+    [~, the_one] = max(positive_counts);
+    R = T2s(:, 1:3, the_one);
+    T = T2s(:, 4, the_one);
 end
 
