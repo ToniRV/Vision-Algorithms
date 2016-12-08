@@ -15,5 +15,10 @@
 
 
 function F = fundamentalEightPoint_normalized(p1, p2)
+    [p1_norm, T_1] = normalise2dpts(p1);
+    [p2_norm, T_2] = normalise2dpts(p2);
 
+    F_norm = fundamentalEightPoint(p1_norm, p2_norm);
+
+    F = T_2'*F_norm*T_1;
 end
