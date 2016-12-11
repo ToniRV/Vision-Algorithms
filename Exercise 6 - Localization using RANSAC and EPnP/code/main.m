@@ -1,6 +1,10 @@
 clear all;
 close all;
-rng(1);
+
+%rng(1);
+
+% Paths
+data_path = addpath('/home/tonirv/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data');
 
 % Create data for parts 1 and 2
 num_inliers = 20;
@@ -21,31 +25,24 @@ data = [x (rand(1, num_outliers) + xstart)
     y (rand(1, num_outliers) * yspan + lowest)];
 
 % Data for parts 3 and 4
-K = load('../data/K.txt');
-keypoints = load('../data/keypoints.txt')';
-p_W_landmarks = load('../data/p_W_landmarks.txt')';
+K = load('~/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data/K.txt');
+keypoints = load('~/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data/keypoints.txt');
+keypoints = keypoints';
+p_W_landmarks = load('~/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data/p_W_landmarks.txt');
 
 % Data for part 4
-database_image = imread('../data/000000.png');
+database_image = imread('~/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data/000000.png');
 
 % Dependencies
 addpath('plot');
 % Replace the following with the path to your DLT code:
-addpath('../../01_pnp/code');
+addpath('~/Documents/Vision Algorithms for Mobile Robotics/exercise2 - PnP/code');
 % Replace the following with the path to your keypoint matcher code:
-addpath('../../02_detect_describe_match/code');
+addpath('~/Documents/Vision Algorithms for Mobile Robotics/exercise3_solns');
 
 %% Part 1 - RANSAC with parabola model
-num_repeats = 100;
-iterations = zeros(1, num_repeats);
-for i=1:num_repeats
-    [best_guess_history, max_num_inliers_history, iterations(i)] = ...
-        parabolaRansac(data, max_noise);
-end
-% Show average of iterations taken to compute the correct fitting parabola.
-average = sum(iterations)/size(iterations,2);
-fprintf('The average of iterations taken with RANSAC to compute the best fitting model is %.2f \n', ...
-    average);
+[best_guess_history, max_num_inliers_history] = ...
+    parabolaRansac(data, max_noise);
 
 % Compare with full data fit.
 full_fit = polyfit(data(1, :), data(2, :), 2);
@@ -82,7 +79,7 @@ disp(rms(polyval(poly, x) - polyval(best_guess_history(:, end), x)));
 
 
 %% Parts 2 and 3 - Localization with RANSAC + DLT/P3P
-query_image = imread('../data/000001.png');
+query_image = imread('~/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data/000001.png');
 
 [R_C_W, t_C_W, query_keypoints, all_matches, inlier_mask, ...
     max_num_inliers_history] = ...
@@ -132,12 +129,12 @@ axis equal;
 axis vis3d;
 axis([-15 10 -10 5 -1 40]);
 for i = 0:9
-    query_image = imread(sprintf('../data/%06d.png',i));
-    
+    query_image = imread(sprintf('~/Documents/Vision Algorithms for Mobile Robotics/Exercise 6 - Localization using RANSAC and EPnP/data/%06d.png',i));
+    tic;
     [R_C_W, t_C_W, query_keypoints, all_matches, inlier_mask] = ...
     ransacLocalization(query_image, database_image,  keypoints, ...
     p_W_landmarks, K);
-
+    toc
     matched_query_keypoints = query_keypoints(:, all_matches > 0);
     corresponding_matches = all_matches(all_matches > 0);
 
