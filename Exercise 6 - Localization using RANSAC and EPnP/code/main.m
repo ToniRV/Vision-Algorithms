@@ -36,8 +36,16 @@ addpath('../../01_pnp/code');
 addpath('../../02_detect_describe_match/code');
 
 %% Part 1 - RANSAC with parabola model
-[best_guess_history, max_num_inliers_history] = ...
-    parabolaRansac(data, max_noise);
+num_repeats = 100;
+iterations = zeros(1, num_repeats);
+for i=1:num_repeats
+    [best_guess_history, max_num_inliers_history, iterations(i)] = ...
+        parabolaRansac(data, max_noise);
+end
+% Show average of iterations taken to compute the correct fitting parabola.
+average = sum(iterations)/size(iterations,2);
+fprintf('The average of iterations taken with RANSAC to compute the best fitting model is %.2f \n', ...
+    average);
 
 % Compare with full data fit.
 full_fit = polyfit(data(1, :), data(2, :), 2);
