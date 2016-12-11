@@ -1,8 +1,13 @@
 function M = estimatePoseDLT(pts2d, p_W_corners, K)
 %ESTIMATEPOSEDLT Summary of this function goes here
 %   Detailed explanation goes here
+% p_W_corners is given weirdly... I think it is x y z in columns and N
+% rows...
     if (size(pts2d,2)==2)
         pts2d = pts2d';
+    end
+    if (size(p_W_corners,2)~=3)
+        p_W_corners = p_W_corners';
     end
     num_pts = size(pts2d,2);
     
