@@ -72,7 +72,7 @@ for i=1:Options.TranslationIterations+Options.AffineIterations
     I_warped = affine_transform_2d_double(I,x,y,W_xp);
 
     % 2: Compute the error image: T(x) - I(W(x;p))
-    I_error = ;  % COMPLETE CODE
+    I_error = I_template - I_warped;  % COMPLETE CODE
 
     % Break if outside image
     if ((p(5)>(size(I,1))-1)||(p(6)>(size(I,2)-1))||(p(5)<0)||(p(6)<0)) 
@@ -80,8 +80,8 @@ for i=1:Options.TranslationIterations+Options.AffineIterations
     end
     
     % 3: Warp the gradient gradI with W(x;p)
-    G_x_warped = ;  % COMPLETE CODE. Similar to step 1:
-    G_y_warped = ;  % COMPLETE CODE
+    G_x_warped = affine_transform_2d_double(G_x,x,y,W_xp);  % COMPLETE CODE. Similar to step 1:
+    G_y_warped = affine_transform_2d_double(G_y,x,y,W_xp);  % COMPLETE CODE
     
     % First iterations do only translation updates for more robustness
     % and, after that, Affine updates.
@@ -103,17 +103,17 @@ for i=1:Options.TranslationIterations+Options.AffineIterations
         % 6: Compute the Hessian matrix using equation 11 in IJCV 2004
         H = zeros(6,6);
         for j=1:NumPixelsTemplate,
-            H = H + ;  % COMPLETE CODE
+            H = H + I_steepest(j,:)'*I_steepest(j,:);  % COMPLETE CODE
         end
 
         % 7: Computer sum_x [gradI*dW/dp]^T (T(X)-I(W(x;p))]
         sum_xy = zeros(6,1);
         for j=1:NumPixelsTemplate,
-            sum_xy = sum_xy + ;  % COMPLETE CODE
+            sum_xy = sum_xy + I_steepest(j,:)'*I_error(j);  % COMPLETE CODE
         end
 
         % 8: Computer delta_p by solving the linear system in Equation 10
-        delta_p = ;  % COMPLETE CODE
+        delta_p = H\sum_xy;  % COMPLETE CODE
 
         % 9: Update the parameters p <- p + delta_p
         p = p + delta_p;
@@ -128,15 +128,15 @@ for i=1:Options.TranslationIterations+Options.AffineIterations
         % 6: Compute the Hessian matrix using equation 11 in IJCV 2004
         H = zeros(2,2);
         for j=1:NumPixelsTemplate,
-            H = H + ;  % COPY from above
+            H = H + I_steepest(j,:)'*I_steepest(j,:);  % COPY from above
         end
         % 7: Computer sum_x [gradI*dW/dp]^T (T(X)-I(W(x;p))]
         sum_xy = zeros(2,1);
         for j=1:NumPixelsTemplate,
-            sum_xy = sum_xy + ;  % COPY from above
+            sum_xy = sum_xy + I_steepest(j,:)'*I_error(j);  % COPY from above
         end
         % 8: Computer delta_p by solving the linear system in Equation 10
-        delta_p = ;  % COPY from above
+        delta_p = H\sum_xy;  % COPY from above
         % 9: Update the parameters p <- p + delta_p
         p(5:6) = p(5:6) + delta_p;
     end
